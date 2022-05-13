@@ -1,0 +1,59 @@
+Name     U51 RAM mapping, CAS, RESET invert;
+PartNo   00 ;
+Date     4/7/2022 ;
+Revision 01 ;
+Designer Tube Time ;
+Company    ;
+Assembly None ;
+Location  ;
+Device   g16v8a ;
+
+/* *************** INPUT PINS *********************/
+PIN 1   = CLK_DISK                ; /* Input clock phase               */
+PIN 2   = IA15                    ; /* Address bit 15                  */
+PIN 3   = PHI2                    ; /* Phase 2 clock                   */
+PIN 4   = IA14                    ; /* Address bit 14                  */
+PIN 5   = ROM_MAP_EN_L            ; /* Enable ROM mapping function     */
+PIN 6   = IA13                    ; /* Address bit 13                  */
+PIN 7   = ROM_READ_EN_L           ; /* Enable reading from ROM         */
+PIN 8   = IA12                    ; /* Address bit 12                  */
+PIN 9   = ROM_WRITE_EN_L          ; /* ROM write enable control        */
+PIN 11  = 6502_RW_L               ; /* 6502 read=1, write=0            */
+PIN 17  = ISA_RESET               ; /* ISA bus reset input             */
+
+/* *************** OUTPUT PINS *********************/
+PIN 18  = IA12_MAPPED             ; /* IA12 fed into RAM chips         */
+PIN 16  = ISA_RESET_L             ; /* Inverted ISA bus reset output   */
+PIN 15  = CAS1_L                  ; /* CAS strobe for main memory      */
+PIN 14  = W2_L                    ; /* Read/write for "ROM" RAM bank   */
+PIN 13  = CAS2_L                  ; /* CAS strobe for "ROM" RAM bank   */
+
+IA12_MAPPED.oe = 'b'1;
+ISA_RESET_L.oe = 'b'1;
+CAS1_L.oe = 'b'1;
+W2_L.oe = 'b'1;
+CAS2_L.oe = 'b'1;
+
+/* Just an inverter */
+ISA_RESET_L = !ISA_RESET;
+
+/* ia12 going to RAM can be either the real IA12 or fixed to 0, if
+ ROM_MAP_EN_L=0, address = 110x xxxx xxxx = $Cxxx/$Dxxx.
+ and also ROM reading or ROM writing is true */
+IA12_MAPPED = !(
+     (!ROM_MAP_EN_L & IA15 & IA14 & !IA13 & 
+     ((!ROM_WRITE_EN_L & !6502_RW_L) # (!ROM_READ_EN_L & 6502_RW_L))) # !IA12);
+
+/* Write line enabled only for ROM writes at $Dxxx, $Exxx, and $Fxxx */
+W2_L = !(PHI2 & !CLK_DISK & !ROM_WRITE_EN_L & !6502_RW_L & IA15 & IA14 & (IA13 # IA12));
+
+/* Enabled when not doing a ROM read or write */
+CAS1_L = !(!CLK_DISK & !(
+          !(ROM_WRITE_EN_L & !6502_RW_L) & !(ROM_READ_EN_L & 6502_RW_L) &
+          (IA13 # IA12) & IA15 & IA14 & PHI2));
+
+/* Enabled only when ROM reads or ROM writes are turned on and only
+for regions $Dxxx, $Exxx, and $Fxxx. */
+CAS2_L = !(PHI2 & !CLK_DISK & IA15 & IA14 & (IA13 # IA12) &
+            ((!ROM_READ_EN_L & 6502_RW_L) # (!ROM_WRITE_EN_L & !6502_RW_L)));
+

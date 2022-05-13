@@ -1,0 +1,63 @@
+Name     U34 ISA Address Decode;
+PartNo   00 ;
+Date     4/5/2022 ;
+Revision 01 ;
+Designer Tube Time ;
+Company    ;
+Assembly None ;
+Location  ;
+Device   g16v8a ;
+
+/* *************** INPUT PINS *********************/
+PIN 1   = A8                      ; /* ISA address bit 8               */
+PIN 2   = A1                      ; /* ISA address bit 1               */
+PIN 3   = A2                      ; /* ISA address bit 2               */
+PIN 4   = A4                      ; /* ISA address bit 4               */
+PIN 5   = A5                      ; /* ISA address bit 5               */
+PIN 6   = A6                      ; /* ISA address bit 6               */
+PIN 7   = A7                      ; /* ISA address bit 7               */
+PIN 9   = ISA_IOR_L               ; /* ISA read signal                 */
+PIN 11  = ISA_IOW_L               ; /* ISA write signal                */
+PIN 13  = A9                      ; /* ISA address bit 9               */
+PIN 14  = ISA_AEN                 ; /* ISA address enable              */
+
+/* *************** OUTPUT PINS *********************/
+PIN 19  = U31A_R_L                ; /* Reenable 6502?                  */
+PIN 18  = KEYBOARD_LATCH          ; /* Write ISA to keyboard latch     */
+PIN 17  = CTRL_LATCH              ; /* Latches control word            */
+PIN 16  = ISA_JOY_TRIG            ; /* ISA trigger for joystick timer  */
+PIN 15  = PORT_READ               ; /* Read joystick or status to ISA  */
+PIN 12  = ISA_OUT_OE_L            ; /* Read data latch to ISA bus      */
+
+U31_R_L.oe = 'b'1;
+KEYBOARD_LATCH.oe = 'b'1;
+CTRL_LATCH.oe = 'b'1;
+ISA_JOY_TRIG.oe = 'b'1;
+PORT_READ.oe = 'b'1;
+ISA_OUT_OE_L.oe = 'b'1;
+
+A0 = 'b'x;
+A3 = 'b'x;
+FIELD ADDRESS = [A9, A8, A7, A6, A5, A4, A3, A2, A1, A0];
+
+/* Write to address 206h pulses U31_R_L low */
+U31A_R_L = !(ADDRESS:'h'206 & !ISA_AEN & ISA_IOR_L & !ISA_IOW_L);
+
+/* Write to address 204h, keyboard latch */
+KEYBOARD_LATCH = !(ADDRESS:'h'204 & !ISA_AEN & ISA_IOR_L & !ISA_IOW_L);
+
+/* Write to address 202h, control word latch */
+CTRL_LATCH = !(ADDRESS:'h'202 & !ISA_AEN & ISA_IOR_L & !ISA_IOW_L);
+
+/* Write to address 200h, trigger joystick analog timer */
+ISA_JOY_TRIG = !(ADDRESS:'h'200 & !ISA_AEN & ISA_IOR_L & !ISA_IOW_L);
+
+/* Read from 200h or 201h.
+  200h = Disk status, keyboard key read flag, 6502 state
+  201h = Joystick status bits, compatible with standard PC */
+PORT_READ = !(ADDRESS:'h'200 & !ISA_AEN & !ISA_IOR_L & ISA_IOW_L);
+
+/* Read from 202h, mailbox written to by Apple at soft switch $C02X */
+ISA_OUT_OE_L = !(ADDRESS:'h'202 & !ISA_AEN & !ISA_IOR_L & ISA_IOW_L);
+
+

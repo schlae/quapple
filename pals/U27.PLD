@@ -1,0 +1,96 @@
+Name     U27 - video address decoding, complex ones. Sync gen.;
+PartNo   00 ;
+Date     3/31/2022 ;
+Revision 01 ;
+Designer Tube Time ;
+Company    ;
+Assembly None ;
+Location  ;
+Device   g16v8a ;
+
+/* *************** INPUT PINS *********************/
+PIN 1   = H4                      ; /* Horizontal counter bit 4        */ 
+PIN 2   = V2                      ; /* Vertical counter bit 2          */ 
+PIN 3   = H5                      ; /* Horizontal counter bit 5        */ 
+PIN 4   = V3                      ; /* Vertical counter bit 3          */ 
+PIN 5   = V4                      ; /* Vertical counter bit 4          */ 
+PIN 6   = V5                      ; /* Vertical counter bit 5          */ 
+PIN 7   = PHI2                    ; /* Phase2 clock                    */ 
+PIN 8   = RAM_ADDR_SEL            ; /* 0=LOW BITS 1=HIGH BITS          */ 
+PIN 9   = V1                      ; /* Vertical counter bit 1          */ 
+PIN 11  = CTRL_MDA                ; /* MDA monochrome mode             */
+PIN 18  = H3                      ; /* Horizontal counter bit 3        */
+
+/* *************** OUTPUT PINS *********************/
+PIN 19  = BLANK                   ; /* Video blanking                  */ 
+PIN 17  = VSYNC                   ; /* Vertical sync                   */
+PIN 16  = HSYNC                   ; /* Horizontal sync                 */
+PIN 15  = MAD4                    ; /* Address bits 4 and 9            */
+PIN 14  = MAD5_1                  ; /* Address bits 5 and 6            */
+PIN 13  = MAD5_2                  ; /* 2nd set of product terms, MAD5  */
+PIN 12  = MAD3                    ; /* Address bits 3 and 15           */
+
+BLANK.oe = 'b'1;
+VSYNC.oe = 'b'1;
+HSYNC.oe = 'b'1;
+
+/* Video blanking signal */
+BLANK = !((V3 & V4) # !V5 # (!H5 & (!H3 # !H4)));
+
+/* Horizontal sync */
+HSYNC = (H3 & !H4 & !H5);
+
+/* Vertical sync. MDA has active low sync, invert if needed */
+VSYNC = CTRL_MDA $ (!V1 & V2 & V3 & V4 & V5);
+
+/* The video address is calculated from this sum: */
+/*               1 (carry in)     */
+/*  V4  V3  V4  V3                */
+/* !H5 !H5  H4  H3    +           */
+/* ---------------------          */
+/* AD6 AD5 AD4 AD3 (bit position) */
+
+
+/* AD15 is always zero */
+AD3 = !(V3 $ H3); /* V3 + H3 + 1 */
+AD3_c = (V3 # H3); /* Carry out */
+MAD3 = !RAM_ADDR_SEL & AD3;
+MAD3.oe = !PHI2;
+
+AD4 = (H4 $ V4) $ AD3_c;      /* AD3_c + H4 + V4 */
+AD4_c = (H4 & V4) # (AD3_c & (H4 $ V4)); /* Carry out */
+AD9 = V2;
+MAD4 = (RAM_ADDR_SEL & AD9) # (!RAM_ADDR_SEL & AD4);
+MAD4.oe = !PHI2;
+
+/* AD5/AD6 is split because the PAL runs out of product terms */
+/* First half output assumes V3 = 0 */
+/* H3 + 1 -> carry out = H3         */
+/* V4 + H4 + H3 -> carry out = (V4 & H4) # (H3 & (V4 $ H4)) */
+/* V3 + !H5 + carry in -> sum = (V3 $ !H5) $ carry in */
+/* V3 + !H5 + carry in -> carry out = (V3 & !H5) # ((V3 $ !H5) & carry in) */
+/*MAD5_1 = (!RAM_ADDR_SEL & (!H5 $ ((H4 & V4) # (H3 & (H4 $ V4))))) # 
+         (RAM_ADDR_SEL & ((V4 $ !H5) $ (!H5 & ((H4 & V4) # (H3 & (H4 $ V4))))));
+*/
+MAD5_1 = !((RAM_ADDR_SEL & H5 & !V4) #
+	    (!RAM_ADDR_SEL & !H4 & H5 & !H3) #
+           (!RAM_ADDR_SEL & !H5 & V4 & H3) #
+           (!RAM_ADDR_SEL & H4 & !H5 & V4) # 
+           (H4 & !H5 & !V4 & H3) #
+           (!H4 & H5 & !V4) #
+           (H5 & !V4 & !H3));
+
+MAD5_1.oe = (!V3 & !PHI2);
+
+/* Second half output assumes V3 = 1 */
+/* H3 + 2 -> carry out = 1           */
+/* V4 + H4 + 1 -> carry out = (V4 # H4) */
+/* V3 + !H5 + carry in -> sum = (V3 $ !H5) $ carry in */
+/* V3 + !H5 + carry in -> carry out = (V3 & !H5) # ((V3 $ !H5) & carry in) */
+bAD4_c = (H4 # V4);
+bAD5 = H5 $ bAD4_c;
+bAD5_c = !H5 # (H5 & bAD4_c);
+bAD6 = (V4 $ !H5) $ bAD5_c;
+MAD5_2 = (RAM_ADDR_SEL & bAD6) # (!RAM_ADDR_SEL & bAD5);
+MAD5_2.oe = (V3 & !PHI2);
+

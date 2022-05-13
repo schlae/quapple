@@ -1,0 +1,152 @@
+Name     U40 Disk Controller;
+PartNo   00 ;
+Date     4/18/2022 ;
+Revision 01 ;
+Designer Tube Time ;
+Company    ;
+Assembly None ;
+Location  ;
+Device   g16v8a ;
+
+/* *************** INPUT PINS *********************/
+PIN 1   = CLK_DISK                ; /* 2MHz disk controller clock      */
+PIN 2   = DIN_LEFT_L              ; /* Inverted data bit from disk     */
+PIN 3   = unused                  ; /* Original PAL uses this?         */
+PIN 4   = FDB7                    ; /* MSB of shift register           */
+PIN 5   = DISK_DRD_L              ; /* When 6502 tries to read data    */
+PIN 6   = DISK_C_OVF              ; /* Bit counter overflow            */
+PIN 7   = DISK_Q7                 ; /* 0=read mode, 1=write mode       */
+PIN 8   = DISK_Q6                 ; /* write: 0=shift, 1=load
+                                       read: 0=read data, 1=read WP bit*/
+PIN 9   = unused2                 ; /* Original PAL uses this?         */
+
+/* *************** OUTPUT PINS *********************/
+/* Combinatorial */
+PIN 19  = DISK_C_PRE_L            ; /* Reset bit counter               */
+PIN 18  = DISK_SR_MR_L            ; /* Clear shift register            */
+PIN 13  = DISK_SR_S1              ; /* Shift left, floppy data to DB0  */
+PIN 12  = DISK_SR_S0              ; /* Shift right, WP bit to DB7
+                                       (both set = parallel load)      */
+
+/* Registered */
+PIN 17  = DISK_DLAT               ; /* Latch data from SR into output  */
+PIN 16  = WDATA_APPLE             ; /* State (read) or disk data (wr)  */
+PIN 15  = STATE1                  ; /* State bit 1                     */
+PIN 14  = STATE0                  ; /* State bit 0                     */
+
+/* Outputs are always enabled */
+DISK_C_PRE_L.oe = 'b'1;
+DISK_SR_MR_L.oe = 'b'1;
+DISK_SR_S1.oe = 'b'1;
+DISK_SR_S0.oe = 'b'1;
+
+/* Preloads the bit counter with either 8 (DIN_LEFT=1) or 5 (DIN_LEFT=0).
+   This counter counts up to F, so it overflows either 7 or 10 cycles later.
+   Used to time the zero detection window, 10 cycles for the first 0 and 7
+   cycles for additional zeros. 
+   In write mode, the counter is used to time 8 clocks per bit cell.
+*/
+DISK_C_PRE_L = ((!DISK_Q7 & !DISK_Q6) & /* Read mode */
+                 (
+                   ((!WDATA_APPLE & STATE1) & STATE0) #                      /* State 01x */
+                   (!(!WDATA_APPLE & STATE1) & (DIN_LEFT_L & !DISK_C_OVF)) /* Not state 01x */
+                 )
+               ) # (
+               /* WP mode, return zero */
+               (DISK_Q7) & /* Write mode */
+                 (
+                   !((!WDATA_APPLE & STATE1 & !STATE0) & DISK_C_OVF) /* Only in state 10 */
+                 )
+               );
+
+/* Clears the data shift register to zero. */
+DISK_SR_MR_L = ((!DISK_Q7 & !DISK_Q6) & /* Read mode */
+                 (
+                   !(!WDATA_APPLE & STATE1 & STATE0) /* 0 in state 011, 1 in the rest */
+                 )
+               ) # (
+                 (DISK_Q7 # DISK_Q6) /* 1 during write mode, write protect mode */
+               );
+
+/* Shift left for reading floppy data, also used as parallel load (with S0=1) for write */
+DISK_SR_S1 = ((!DISK_Q7 & !DISK_Q6) & /* Read mode */
+               (
+                 ((!WDATA_APPLE & STATE1 & !STATE0)) #  /* 1 in state 010 */
+                 ((!WDATA_APPLE & !STATE1) & (!DIN_LEFT_L # DISK_C_OVF)) /* state 00x */
+               )
+             ) # (
+               (DISK_Q7) & /* Write mode */
+                 (
+                   (!WDATA_APPLE & !STATE1 & STATE0) /* 1 in state 001 */
+                 )
+             );
+
+/* Shift right for reading write protect bit. 
+   Also used as parallel load (with S1=0) for write. */
+DISK_SR_S0 = ((!DISK_Q7 & DISK_Q6) /* 1 for write protect mode */
+             ) # (
+               (DISK_Q7) & 
+                 (
+                   ((!WDATA_APPLE & !STATE1 & STATE0) & DISK_Q6) /* =Q6 in state 001 */
+                 )
+             );
+
+/* Disk data latch, transfers data from the shift register to the internal
+   data bus */
+DISK_DLAT.d = (!DISK_Q7 & !DISK_Q6) & /* Read */
+              (
+                  (WDATA_APPLE & !STATE1 & STATE0) #                           /* Set in state 101 */
+                  (!(!WDATA_APPLE & !STATE1 & STATE0 & FDB7) & DISK_DLAT) #    /* Clear in state 001->011 */
+                  (!DISK_DRD_L)                                                /* Set during data read */
+              ) # (!DISK_Q7 & DISK_Q6) # /* Write protect */
+              (DISK_Q7); /* Write: always 1 */
+
+/* Now for the state machine */
+FUNCTION mode_read() {mode_read = !DISK_Q7 & !DISK_Q6; }
+FUNCTION mode_write() {mode_write = DISK_Q7; }
+FUNCTION mode_write_protect() {mode_write_protect = !DISK_Q7 & DISK_Q6; }
+
+FIELD state = [WDATA_APPLE, STATE1, STATE0];
+
+SEQUENCE state {
+    PRESENT 'b'011 /* Read: Clear shift register. Write: Emit logic 0 to disk. */
+                   /* Write protect: Only valid state. */
+        IF mode_read() NEXT 'b'010;
+        IF mode_write_protect() NEXT 'b'011;
+        IF mode_write() NEXT 'b'000; 
+    PRESENT 'b'010 /* Read: Wait for bit 7. Write: Wait for timer, then emit bit. */
+        IF mode_read() & !DIN_LEFT_L NEXT 'b'000;
+        IF mode_read() & DIN_LEFT_L NEXT 'b'010;
+        IF mode_write_protect() NEXT 'b'011;
+        IF mode_write() & DISK_C_OVF & FDB7 NEXT 'b'111;  /* Emit 1 */
+        IF mode_write() & DISK_C_OVF & !FDB7 NEXT 'b'011; /* Emit 0 */
+        IF mode_write() & !DISK_C_OVF NEXT 'b'010;        /* Wait */
+    PRESENT 'b'000 /* Read: Wait for bit 6. Write: Start write timer. */
+        IF mode_read() & (!DIN_LEFT_L # DISK_C_OVF) NEXT 'b'100;
+        IF mode_read() & !(!DIN_LEFT_L # DISK_C_OVF) NEXT 'b'000;
+        IF mode_write_protect() NEXT 'b'011;
+        IF mode_write() NEXT 'b'001;
+    PRESENT 'b'100 /* Read: Intermediate state. Write: Bad state */
+        IF mode_read() NEXT 'b'111;
+        IF mode_write_protect() NEXT 'b'011;
+        IF mode_write() NEXT 'b'000; /* Bad state */
+    PRESENT 'b'111 /* Read: Intermediate state. Write: Emit logic 1 to disk. */
+        IF mode_read() NEXT 'b'110;
+        IF mode_write_protect() NEXT 'b'011;
+        IF mode_write() NEXT 'b'000;
+    PRESENT 'b'110 /* Read: Intermediate state. Write: Bad state */
+        IF mode_read() NEXT 'b'101;
+        IF mode_write_protect() NEXT 'b'011;
+        IF mode_write() NEXT 'b'000; /* Bad state */
+    PRESENT 'b'101 /* Read: Set DISK_DLAT. Write: Bad state. */
+        IF mode_read() NEXT 'b'001;
+        IF mode_write_protect() NEXT 'b'011;
+        IF mode_write() NEXT 'b'000; /* Bad state */
+    PRESENT 'b'001 /* Read: Shift data until MSB=1. Write: Parallel load. */
+        IF mode_read() & FDB7 NEXT 'b'011;
+        IF mode_read() & !FDB7 NEXT 'b'001;
+        IF mode_write_protect() NEXT 'b'011;
+        IF mode_write() NEXT 'b'010;
+}
+
+

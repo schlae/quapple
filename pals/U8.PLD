@@ -1,0 +1,58 @@
+Name     U8 - Video address decoding, simple ones;
+PartNo   00 ;
+Date     3/29/2022 ;
+Revision 01 ;
+Designer Tube Time ;
+Company    ;
+Assembly None ;
+Location  ;
+Device   g16v8a ;
+
+/* *************** INPUT PINS *********************/
+PIN 1   = H0                      ; /* Horizontal counter bit 0        */ 
+PIN 2   = VB                      ; /* Vertical counter bit 1          */ 
+PIN 3   = H1                      ; /* Horizontal counter bit 1        */ 
+PIN 4   = VC                      ; /* Vertical counter bit 2          */ 
+PIN 5   = V0                      ; /* Vertical counter bit 3          */ 
+PIN 6   = V1                      ; /* Vertical counter bit 4          */ 
+PIN 7   = H2                      ; /* Horizontal counter bit 2        */ 
+PIN 8   = RAM_ADDR_SEL            ; /* 0=LOW BITS 1=HIGH BITS          */ 
+PIN 9   = PHI2                    ; /* Phase2 clock                    */ 
+PIN 11  = VA                      ; /* Vertical counter bit 0          */ 
+PIN 16  = PAGE2                   ; /* Second video page select        */ 
+PIN 17  = HIRES                   ; /* Hi res mode select              */ 
+PIN 18  = TEXT_PART               ; /* Text part of a graphics window  */ 
+
+/* *************** OUTPUT PINS *********************/
+PIN 19  = MAD0                    ; /* Address bits 0 and 14           */ 
+PIN 15  = MAD7                    ; /* Address bits 7 and 11           */ 
+PIN 14  = MAD1                    ; /* Address bits 1 and 13           */ 
+PIN 13  = MAD2                    ; /* Address bits 2 and 10           */ 
+PIN 12  = MAD8                    ; /* Address bits 8 and 12           */ 
+
+/* Address is driven only when PHI2 is low (6502 handles PHI2=1) */
+MAD0.OE = !PHI2;
+MAD1.oe = !PHI2;
+MAD2.oe = !PHI2;
+MAD7.oe = !PHI2;
+MAD8.oe = !PHI2;
+
+TEXT = !HIRES # (HIRES & TEXT_PART); /* Text mode or text part of a graphics window */
+HI_GR = HIRES & !TEXT_PART;          /* Graphics part of a hi-res graphics window */
+
+/* Set up high order video address bits */
+/*   High-res graphics       Text mode  */
+AD10 = (HI_GR & VA)       # (TEXT & !PAGE2);
+AD11 = (HI_GR & VB)       # (TEXT & PAGE2);
+AD12 = (HI_GR & VC);
+AD13 = (HI_GR & !PAGE2);
+AD14 = (HI_GR & PAGE2);
+
+/* Generate multiplexed video address bus */
+/*        High-order bits         Low-order bits  */
+MAD0 = (RAM_ADDR_SEL & AD14) # (!RAM_ADDR_SEL & H0);
+MAD1 = (RAM_ADDR_SEL & AD13) # (!RAM_ADDR_SEL & H1);
+MAD2 = (RAM_ADDR_SEL & AD10) # (!RAM_ADDR_SEL & H2);
+MAD7 = (RAM_ADDR_SEL & AD11) # (!RAM_ADDR_SEL & V0);
+MAD8 = (RAM_ADDR_SEL & AD12) # (!RAM_ADDR_SEL & V1);
+

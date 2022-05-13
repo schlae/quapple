@@ -1,0 +1,65 @@
+Name     U30 Soft Switches;
+PartNo   00 ;
+Date     4/2/2022 ;
+Revision 01 ;
+Designer Tube Time ;
+Company    ;
+Assembly None ;
+Location  ;
+Device   g16v8a ;
+
+/* *************** INPUT PINS *********************/
+PIN 1   = BOOTSTRAP_L             ; /* 6502 in bootstrap mode          */
+PIN 2   = ISA_JOY_TRIG            ; /* ISA bus trig for joystick read  */ 
+PIN 3   = IA7                     ; /* Internal address bus bit 7      */
+PIN 4   = IA4                     ; /* Internal address bus bit 4      */
+PIN 5   = IA5                     ; /* Internal address bus bit 5      */
+PIN 6   = IA6                     ; /* Internal address bus bit 6      */
+PIN 7   = SOFT_SWITCH_EN_L        ; /* Enables soft switches           */
+
+/* *************** OUTPUT PINS *********************/
+PIN 19  = SLOT6_SSW               ; /* Soft switch for slot 6          */
+PIN 18  = JOY_TRIG                ; /* Prepare 558 to test joystick    */
+PIN 17  = KEYBOARD_READ           ; /* Read from keyboard latch        */
+PIN 16  = SPEAKER                 ; /* Generate tick from speaker      */
+PIN 15  = ANNUNCIATOR             ; /* Annunciator bit outputs         */
+PIN 14  = ANALOG_IN               ; /* Get analog joystick data        */
+PIN 13  = ISA_OUT_LATCH           ; /* Write data to host PC           */
+PIN 12  = KEYBOARD_STROBE         ; /* Clears bit 7 of keyboard data   */
+
+/* All output enables are on */
+SLOT6_SSW.oe        = 'b'1;
+JOY_TRIG.oe         = 'b'1;
+KEYBOARD_READ.oe    = 'b'1;  
+SPEAKER.oe          = 'b'1;        
+ANNUNCIATOR.oe      = 'b'1;    
+ANALOG_IN.oe        = 'b'1;      
+ISA_OUT_LATCH.oe    = 'b'1;  
+KEYBOARD_STROBE.oe  = 'b'1;
+
+/* Decodes 1110xxxx = $C0Ex */
+SLOT6_SSW = !(BOOTSTRAP_L & !IA4 & IA5 & IA6 & IA7 & !SOFT_SWITCH_EN_L);
+
+/* Joystick reset trigger. Can also come from the ISA bus */
+/* Decodes 0111xxxx = $C07x */
+JOY_TRIG = !((BOOTSTRAP_L & IA4 & IA5 & IA6 & !IA7 & !SOFT_SWITCH_EN_L) # (!ISA_JOY_TRIG));
+
+/* Keyboard read port. Doubles as a source of instructions in bootstrap mode */
+/* Decodes to 0000xxxx = $C00x */
+KEYBOARD_READ = !((BOOTSTRAP_L & !IA4 & !IA5 & !IA6 & !IA7 & !SOFT_SWITCH_EN_L) # (!BOOTSTRAP_L));
+
+/* Decodes to 0011xxxx = $C03x */
+SPEAKER = !(BOOTSTRAP_L & IA4 & IA5 & !IA6 & !IA7 & !SOFT_SWITCH_EN_L);
+
+/* Decodes to 0101xxxx = $C05x */
+ANNUNCIATOR = !(BOOTSTRAP_L & IA4 & !IA5 & IA6 & !IA7 & !SOFT_SWITCH_EN_L);
+
+/* Decodes to 0110xxxx = $C06x */
+ANALOG_IN = !(BOOTSTRAP_L & !IA4 & IA5 & IA6 & !IA7 & !SOFT_SWITCH_EN_L);
+
+/* Decodes to 0010xxxx = $C02x */
+ISA_OUT_LATCH = !(BOOTSTRAP_L & !IA4 & IA5 & !IA6 & !IA7 & !SOFT_SWITCH_EN_L);
+
+/* Decodes to 0001xxxx = $C01x */
+KEYBOARD_STROBE = !(BOOTSTRAP_L & IA4 & !IA5 & !IA6 & !IA7 & !SOFT_SWITCH_EN_L);
+

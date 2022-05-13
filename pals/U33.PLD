@@ -1,0 +1,61 @@
+Name     U33 Video Color;
+PartNo   00 ;
+Date     4/2/2022 ;
+Revision 01 ;
+Designer Tube Time ;
+Company    ;
+Assembly None ;
+Location  ;
+Device   g16v8a ;
+
+/* *************** INPUT PINS *********************/
+PIN 1   = CLK_7M159               ; /* Clock to all latches            */
+PIN 2   = TEXT_PART               ; /* Text portion of a window        */ 
+PIN 3   = CTRL_MONO               ; /* No color                        */
+PIN 4   = HIRES                   ; /* High res graphics               */
+PIN 5   = HSYNC                   ; /* Horizontal sync input           */
+PIN 6   = CHARPIX                 ; /* Pixel data from shift register  */
+PIN 7   = RDB7                    ; /* Inverse video bit               */
+PIN 8   = PIXCLK2                 ; /* Secondary pixel clock           */
+PIN 9   = i9                      ; /* Unknown, tied low externally    */
+
+/* *************** OUTPUT PINS *********************/
+PIN 19  = VID_I                   ; /* Intensity                       */
+PIN 18  = VID_R                   ; /* Red                             */
+PIN 17  = VID_G                   ; /* Green                           */
+PIN 16  = VID_B                   ; /* Blue                            */
+PIN 15  = PALETTE                 ; /* Latched bit 7 of char byte      */
+PIN 14  = BURST                   ; /* 3.579MHz synced to HSYNC        */
+PIN 13  = PREVPIX1                ; /* Pixel shift register bit 1      */
+PIN 12  = PREVPIX0                ; /* Pixel shift register bit 0      */
+
+/* Generates color when previous pixel bit=0 and the one before that=1
+   Original Apple II generates orange, but we have to generate red instead
+   Intensity is always 0 for colors
+   R_B = Violet:       !PALETTE &   BURST & !PREVPIX1 & PREVPIX0
+   _G_ = Green:        !PALETTE &  !BURST & !PREVPIX1 & PREVPIX0
+   __B = Blue:          PALETTE &   BURST & !PREVPIX1 & PREVPIX0
+   R__ = Red (Orange):  PALETTE &  !BURST & !PREVPIX1 & PREVPIX0 */
+
+VID_I.d = (PREVPIX0 & (TEXT_PART # (HIRES & (CTRL_MONO # CHARPIX # PREVPIX1)))) # i9;
+VID_R.d = (PREVPIX0 & (TEXT_PART # (HIRES & (CTRL_MONO # CHARPIX # PREVPIX1 # (BURST $ PALETTE))))) # i9;
+VID_G.d = (PREVPIX0 & (TEXT_PART # (HIRES & (CTRL_MONO # CHARPIX # PREVPIX1 # (!BURST & !PALETTE))))) # i9;
+VID_B.d = (PREVPIX0 & (TEXT_PART # (HIRES & (CTRL_MONO # CHARPIX # PREVPIX1 # BURST)))) # i9;
+
+/* If pixel clock is 0, then latch RDB7. Otherwise it retains its state.
+   RDB7 is used for the color set for hires. */
+PALETTE.d = ((PALETTE & PIXCLK2) # (RDB7 & !PIXCLK2)) # i9;
+
+/* This is 3.579MHz clock synced up the the HSYNC signal (resets it to a '1').
+   Toggles every cycle, reset to a '1' by HSYNC. */
+BURST.d = HSYNC # !BURST # i9;
+
+/* PREVPIX0 and PREVPIX1 form a 2-bit shift register that latch CHARPIX data from the
+  shift register. Cleared if both TEXT_PART and HIRES are low (and outputs 
+  are disabled anyway). In text mode or hires mode, B&W pixel data comes in
+  from the character shift register. */
+
+PREVPIX1.d = ((TEXT_PART # HIRES) & PREVPIX0) # i9;
+PREVPIX0.d = ((TEXT_PART # HIRES) & CHARPIX) # i9;
+
+

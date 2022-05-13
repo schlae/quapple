@@ -1,0 +1,94 @@
+Name     U49 6502 CPU control;
+PartNo   00 ;
+Date     4/5/2022 ;
+Revision 01 ;
+Designer Tube Time ;
+Company    ;
+Assembly None ;
+Location  ;
+Device   g16v8a ;
+
+/* *************** INPUT PINS *********************/
+PIN 1   = PHI2                    ; /* Phase 2 clock                   */
+PIN 2   = IA15                    ; /* Address bit 15                  */
+PIN 3   = IA8                     ; /* Address bit 8                   */
+PIN 4   = IA14                    ; /* Address bit 14                  */
+PIN 5   = IA9                     ; /* Address bit 9                   */
+PIN 6   = IA13                    ; /* Address bit 13                  */
+PIN 7   = IA10                    ; /* Address bit 10                  */
+PIN 8   = IA12                    ; /* Address bit 12                  */
+PIN 9   = IA11                    ; /* Address bit 11                  */
+PIN 11  = 6502_WR_L               ; /* 6502 read/write# line           */
+PIN 13  = CTRL_BOOT_HALT          ; /* Control bit to halt CPU         */
+PIN 16  = CTRL_BOOT_STEP          ; /* Control bit to single-step CPU  */
+PIN 17  = 6502_STOP               ; /* Current state of 6502           */
+
+/* *************** OUTPUT PINS *********************/
+PIN 19  = W_L                     ; /* 6502 bus write control line     */
+PIN 18  = 6502_BOOTSTRAP_L        ; /* Bootstrap mode for 6502         */
+PIN 15  = U26_CE                  ; /* Enable memory->6502 data buffer */
+PIN 14  = SOFT_SWITCH_EN_L        ; /* Access to soft switch area      */
+PIN 12  = 6502_RDY                ; /* 6502 ready pin                  */
+
+W_L.oe = 'b'1;
+6502_BOOTSTRAP_L.oe = 'b'1;
+U26_CE.oe = 'b'1;          
+SOFT_SWITCH_EN_L.oe = 'b'1;
+6502_RDY.oe = 'b'1;        
+
+FIELD ADDRESS = [IA15..8];
+
+/* Write line for internal RAM. Must not step on soft switches at $C0xx */
+W_L = !PHI2 # (CTRL_BOOT_STEP & CTRL_BOOT_HALT) # 6502_WR_L # 
+      (IA15 & IA14 & !IA13 & !IA12 & !IA11 & !IA10 & !IA9 & !IA8) #
+      (CTRL_BOOT_HALT & IA15 & IA14);
+
+/* The 6502 can be halted when CTRL_BOOT_STEP is 1.
+Two ways:
+1. Address=$FDxx, 6502 is doing a bus read, and 6502_STOP 
+   asserts. (6502_STOP is under control of ISA bus)
+2. CTRL_BOOT_HALT is turned on in the control word. */
+6502_RDY = !( (6502_WR_L & 6502_STOP & CTRL_BOOT_STEP & 
+              IA15 & IA14 & IA13 & IA12 & IA11 & IA10 & !IA9 & IA8) #
+              (CTRL_BOOT_STEP & CTRL_BOOT_HALT));
+
+/* This disables regular keyboard port reads, and instead allows
+it to spoon-feed instructions to the 6502 from the ISA bus. This
+only is allowed when in CTRL_BOOT_STEP mode and not CTRL_BOOT_HALT
+mode, and only in the address range $FD00-$FDFF and $FF00-$FFFF.) */
+6502_BOOTSTRAP_L = !(PHI2 & 6502_WR_L & CTRL_BOOT_STEP & !CTRL_BOOT_HALT & 
+                     IA15 & IA14 & IA13 & IA12 & IA11 & IA10 & IA8);
+
+/* Controls buffer between data bus and memory bus. Active when low.
+   Active when not totally halted, address is not C0xx. */
+/* (did not work) U26_CE = !PHI2 # (CTRL_BOOT_STEP & CTRL_BOOT_HALT) #
+         (IA15 & IA14 & !IA13 & !IA12 & !IA11 & !IA10 & !IA9 & !IA8);*/
+/* Ugly but it works, copied from DuPAL scan. FIXME: clean this up! */
+U26_CE = !PHI2 # !(
+    (!IA8  &   IA9   & !CTRL_BOOT_HALT) # 
+    (!IA8  &   IA13 &  !CTRL_BOOT_HALT) # 
+    ( IA8  &  !IA11 &  !CTRL_BOOT_HALT) # 
+    (!IA12 &   IA11 &  !CTRL_BOOT_HALT) #
+    (!IA13 &   IA10 &  !CTRL_BOOT_HALT) #
+    (!IA10 &   IA12 &  !CTRL_BOOT_HALT) # 
+
+    (!IA15 & !CTRL_BOOT_HALT) #
+    (!IA14 & !CTRL_BOOT_HALT) #
+
+    ( IA11 & !6502_WR_L & !CTRL_BOOT_HALT) #
+
+    (!IA15 & !CTRL_BOOT_STEP) #
+    (!IA14 & !CTRL_BOOT_STEP) #
+    ( IA13 & !CTRL_BOOT_STEP) #
+    ( IA12 & !CTRL_BOOT_STEP) #
+    ( IA11 & !CTRL_BOOT_STEP) #
+    ( IA10 & !CTRL_BOOT_STEP) #
+    ( IA9  & !CTRL_BOOT_STEP) # 
+    ( IA8  & !CTRL_BOOT_STEP)
+);
+
+
+
+/* Soft switch enable decodes the range $C000-$C0FF, but only when not totally halted. */
+SOFT_SWITCH_EN_L = !( PHI2 & IA15 & IA14 & !IA13 & !IA12 & !IA11 & !IA10 & !IA9 & !IA8 & !(CTRL_BOOT_STEP & CTRL_BOOT_HALT));
+

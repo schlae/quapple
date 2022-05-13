@@ -1,0 +1,5 @@
+(sym_lib_table
+  (lib (name "logic")(type "Legacy")(uri "C:/Data/Projects/KiCad Libraries/Schematic/logic.lib")(options "")(descr ""))
+  (lib (name "Mim1Rev2")(type "Legacy")(uri "C:/Data/Projects/MIM-1/MIM-1 PCB Rev 2/Mim1Rev2.lib")(options "")(descr ""))
+  (lib (name "memory")(type "Legacy")(uri "C:/Data/Projects/KiCad Libraries/Schematic/memory.lib")(options "")(descr ""))
+)

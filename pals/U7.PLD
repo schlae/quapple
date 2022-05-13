@@ -1,0 +1,70 @@
+Name     U7 - Clock generation, some video timing;
+PartNo   00 ;
+Date     4/2/2022 ;
+Revision 01 ;
+Designer Tube Time ;
+Company    ;
+Assembly None ;
+Location  ;
+Device   g16v8a ;
+
+/* *************** INPUT PINS *********************/
+PIN 1   = ISA_14M318              ; /* ISA clock input, 14.318MHz      */
+PIN 2   = TXT_GR                  ; /* 1=text, 0=graphics              */ 
+PIN 3   = WINDOWMODE              ; /* Windowed graphics mode          */
+PIN 4   = HIRES                   ; /* Hi-res graphics mode            */
+PIN 6   = BLANK_L                 ; /* Video blanked                   */
+PIN 7   = V4                      ; /* Vertical counter bit 4          */
+PIN 8   = V2                      ; /* Vertical counter bit 2          */
+
+/* *************** OUTPUT PINS *********************/
+PIN 12  = PHI_TWO                 ; /* Phase 2 clock out               */ 
+PIN 13  = RAM_ADDR_SEL            ; /* RAM address phase (RAS/CAS)     */
+PIN 14  = 7M159_CLK               ; /* Divided master clock            */
+PIN 17  = CLK_DISK                ; /* Clock runs to the disk circuit  */
+PIN 15  = LD_CHR_SYN_L            ; /* Load the pixel shift reg        */
+PIN 16  = PIXCLK2                 ; /* Clock used by some video stuff  */
+PIN 18  = RAS_L                   ; /* Row addr select going to RAM    */
+PIN 19  = TEXT_PART               ; /* Text part of a split window     */
+
+
+7M159_CLK.d = !7M159_CLK;
+
+/* Basic timing cycle generation */
+FIELD tim_in = [7M159_CLK, RAM_ADDR_SEL, CLK_DISK, PHI_TWO];
+FIELD tim_out = [RAM_ADDR_SEL.d, CLK_DISK.d, PHI_TWO.d];
+TABLE tim_in => tim_out {
+'b'0010 => 'b'010;
+'b'1010 => 'b'110;
+'b'0110 => 'b'100;
+'b'1100 => 'b'100;
+'b'0100 => 'b'000;
+'b'1000 => 'b'000;
+'b'0000 => 'b'011;
+'b'1011 => 'b'011;
+'b'0011 => 'b'111;
+'b'1111 => 'b'101;
+'b'0101 => 'b'101;
+'b'1101 => 'b'001;
+'b'0001 => 'b'001;
+'b'1001 => 'b'010;
+/* Unused states */
+'b'0111 => 'b'111;
+'b'1110 => 'b'111;
+}
+
+RAS_L.d = !(RAM_ADDR_SEL # CLK_DISK);
+
+PIXCLK2.d = !( !RAM_ADDR_SEL & ((!CLK_DISK & 7M159_CLK & PHI_TWO) # 
+                                (CLK_DISK & !7M159_CLK & !PHI_TWO) # 
+                                (!HIRES & !CLK_DISK & !7M159_CLK & PHI_TWO)));
+
+LD_CHR_SYN_L.d =  !(!CLK_DISK & BLANK_L & PHI_TWO & !(7M159_CLK $ RAM_ADDR_SEL));
+
+/* Goes high to indicate the text part of the screen */
+/* This signal is latched at a specific time */
+update_signal = !CLK_DISK & !7M159_CLK & !RAM_ADDR_SEL & PHI_TWO;
+TEXT_PART.d = (update_signal & (TXT_GR # (WINDOWMODE & V2 & V4))) #
+              (!update_signal & TEXT_PART);
+
+

@@ -1,0 +1,55 @@
+Name     U50 ROM control;
+PartNo   00 ;
+Date     4/5/2022 ;
+Revision 01 ;
+Designer Tube Time ;
+Company    ;
+Assembly None ;
+Location  ;
+Device   g16v8a ;
+
+/* *************** INPUT PINS *********************/
+PIN 1   = SOFT_SWITCH_EN_L        ; /* Clocked during soft sw write    */
+PIN 2   = IA6                     ; /* Address bit 6                   */
+PIN 3   = IA7                     ; /* Address bit 7                   */
+PIN 4   = IA5                     ; /* Address bit 5                   */
+PIN 5   = IA1                     ; /* Address bit 1                   */
+PIN 6   = IA4                     ; /* Address bit 4                   */
+PIN 7   = IA0                     ; /* Address bit 0                   */
+PIN 8   = IA3                     ; /* Address bit 3                   */
+
+/* *************** OUTPUT PINS *********************/
+PIN 17  = nc4                     ; /* Secret knock latch bit          */
+PIN 16  = ROM_MAP_EN_L            ; /* Map ROM somewhere               */
+PIN 15  = ROM_WRITE_EN_L          ; /* Enable writes to "ROM" area     */
+PIN 14  = ROM_READ_EN_L           ; /* Enable reads from "ROM" area    */
+
+/* Set ROM write enable by $C080, $C081 */
+
+/* Clear nc4 at $C08x, LSB=0. Set by $C08x, LSB=1 */
+nc4.d = !(  (IA7 & !IA6 & !IA5 & !IA4 & !IA0) # 
+          (!nc4 & !(IA7 & !IA6 & !IA5 & !IA4)));
+
+/* Sets ROM write enable if nc4=1 and $C08_, _=xxx1
+   Clear ROM write enable if $C08x */
+ROM_WRITE_EN_L.d = !(
+    (nc4 & IA7 & !IA6 & !IA5 & !IA4 & !IA1 & IA0) #
+    (nc4 & IA7 & !IA6 & !IA5 & !IA4 &  IA1 & IA0) #
+    ( !ROM_WRITE_EN_L & !(IA7 & !IA6 & !IA5 & !IA4)));
+
+/* Sets ROM mapping enable by $C08_, _=1xxx
+   Clears ROM mapping enable by $C08x */
+ROM_MAP_EN_L.d = !(
+    (IA7 & !IA6 & !IA5 & !IA4 & IA3) #
+    (!ROM_MAP_EN_L & !(IA7 & !IA6 & !IA5 & !IA4)));
+
+/* Sets ROM read enable by $C08_, _=xxxx
+   Clears ROM mapping enable by $C08x */
+ROM_READ_EN_L.d = !(
+    (IA7 & !IA6 & !IA5 & !IA4 & !IA1 & !IA0) #
+    (IA7 & !IA6 & !IA5 & !IA4 &  IA1 &  IA0) #
+    (!ROM_READ_EN_L & !(IA7 & !IA6 & !IA5 & !IA4)));
+
+
+
+
