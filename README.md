@@ -13,6 +13,8 @@ All of the components are readily available. In the bill of materials, Mouser pa
 
 Please note that the 0.1" header pins are *not* listed on the BOM. They are standard breakaway headers.
 
+The memory chips (4416 and 4164 RAM) are both 150ns types.
+
 [Fab Files](https://github.com/schlae/quapple/blob/main/fab/Quapple-rev1.zip)
 
 ## Fabrication Notes
@@ -39,10 +41,12 @@ If you want to use the card in another system (note: I have not tested this yet!
 
 J5 and J6 are right-angle 0.1" headers. You can use a single 8-pin strip. Remember to pull pin 2 on both header positions since this is the key for the cable that plugs in. This is also marked on the back of the PC board.
 
+If you are using an NMOS 6502, you can connect the solder jumper on the back of the board right next to the chip. CMOS 6502 chips repurpose this pin and the solder jumper should be left open.
+
 Note for European users: it might be tempting to configure the solder jumpers on the back of the card for PAL timings rather than NTSC, but I have not tested this configuration. The original Quadlink has solder paste covering the jumpers, implying that they never fully tested it. Use it at your own risk.
 
 ## Bracket
-I've created a CAD model of the original Quadlink bracket. If you have access to sheet metal tools (or even just a chassis nibbler) then you can reproduce it. Once it is in the right shape, bend the top using a press brake or even just a bench vise.
+I've created a CAD model of the original Quadlink bracket. If you have access to sheet metal tools (or even just a chassis nibbler) then you can reproduce it. Once it is in the right shape, bend the top using a press brake or even just a bench vise. The material is 0.035" (0.9mm) steel, brushed and painted black.
 
 [CAD drawing of bracket](https://github.com/schlae/quapple/blob/main/mech/bracket.dxf)
 
@@ -82,12 +86,14 @@ PAL functions are as follows:
 You will also need to build several cable assemblies to connect the Quapple to your PC.
 
 ### Floppy drive cable
-For use with an IBM 5150 or 5160, make a short (4-6") IDC ribbon cable, 34 pin, with a 0.1" female header at one end and a 34-pin female edge connector at the other end.
+For use with an IBM 5150 or 5160, make a short, 6" (15cm) IDC ribbon cable, 34 pin, with a 0.1" female header at one end and a 34-pin female edge connector at the other end.
 
 For any other computer, just crimp a 34-pin 0.1" female header at both ends. Be sure not to get pin 1 mixed up--it is very easy to do!
 
 ### Video loopback cable
-To use the same monitor for both Apple and PC mode, you'll need a short cable to go between the Quapple and your regular video card (MDA or CGA). This is just a 6" cable with a male DE-9 connector at both ends, wired straight through (pin 1 to pin 1, etc).
+To use the same monitor for both Apple and PC mode, you'll need a short cable to go between the Quapple and your regular video card (MDA or CGA). This is just a short cable with a male DE-9 connector at both ends, wired straight through (pin 1 to pin 1, etc).
+
+The stock cable is 12" (30.5cm) long and uses a TE Connectivity/AMP 745032-1 connector, along with a cord guard, 207753-1, at both ends. The contact part number is 1-66506-0. The cable is 0.24" (6mm) diameter with eight conductors (the drain wire is connected to pin 1).
 
 ### PC speaker jumper
 To hear Apple sound through the PC speaker, make a short 2-wire cable (maybe 2-3" long, depending on your computer). This goes from the motherboard to the Quapple.
