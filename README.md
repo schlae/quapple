@@ -123,7 +123,7 @@ You can find the software at the link below, along with the manual of the origin
 
 The Filer disk can be written using a flux imaging tool, or possibly with an Apple II running ADTPro.
 
-[Software download](https://www.diskman.com/presents/trackstar/) (Scroll down to the bottom of the page.)
+[Software download](https://www.diskman.com/presents/trackstar/software.htm)
 
 A note about compatibility: I have only tested the card in an IBM 5150. It's supposed to work in a 5160 as well. Based on looking at the design, I see no reason why it wouldn't work in a faster machine, but there may be CPU-dependent hardware loops in the Quadlink executable that would prevent it from working.
 
