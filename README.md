@@ -3,7 +3,7 @@ What is a Quadlink? It's an ISA expansion card from the '80s designed to turn yo
 
 ![Quapple card photo](https://github.com/schlae/quapple/blob/main/images/quapple.png)
 
-I'm not selling this board, but the complete design files are available here so you can build it yourself.
+I'm not selling this board, but the complete design files are available here so you can build it yourself. As an alternative, [a2heaven](http://www.a2heaven.com/webshop/index.php?rt=product/product&product_id=177) sells a kit with the PCB and all the components. (I have not personally built one of these kits.)
 
 All of the components are readily available. In the bill of materials, Mouser part numbers are listed where available. The RAM chips, 27C32 ROM chip, and NE558 may be obtained from a variety of sources in China, but they are not guaranteed to work, so I recommend getting 1 or 2 extras just in case. Note: It has been reported that a Signetics NE558 with a date code of 8825VI, commonly available from China, does not actually work. If you can't find any working 558 chips, try building [my replacement that uses four 555 chips](https://oshpark.com/shared_projects/zHGURt7g).
 
